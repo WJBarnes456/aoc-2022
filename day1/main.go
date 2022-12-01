@@ -21,17 +21,18 @@ func getElves(r io.Reader) ([][]int, error) {
 		if text == "" {
 			elves = append(elves, current_elf)
 			current_elf = make([]int, 0)
-		} else {
-			val64, err := strconv.ParseInt(scanner.Text(), 10, 32)
-
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse calories: %w", err)
-			}
-
-			val := int(val64)
-
-			current_elf = append(current_elf, val)
+			continue
 		}
+
+		val64, err := strconv.ParseInt(scanner.Text(), 10, 32)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse calories: %w", err)
+		}
+
+		val := int(val64)
+
+		current_elf = append(current_elf, val)
 	}
 
 	elves = append(elves, current_elf)
@@ -88,5 +89,5 @@ func main() {
 
 	part2 := part2(elves)
 
-	fmt.Println("Part 2 solution", part2)
+	fmt.Println("Part 2 solution:", part2)
 }
