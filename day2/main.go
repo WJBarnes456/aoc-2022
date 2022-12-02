@@ -157,14 +157,14 @@ func main() {
 	input, err := readGuide(os.Stdin)
 
 	if err != nil {
-		fmt.Errorf("failed to read guide: %v", err)
+		fmt.Fprintln(os.Stderr, "failed to read guide:", err)
 		os.Exit(1)
 	}
 
 	part1Guide, err := interpretGuide(input, Part1)
 
 	if err != nil {
-		fmt.Errorf("failed to interpret guide for part 1: %v", err)
+		fmt.Fprintln(os.Stderr, "failed to interpret guide for part 1:", err)
 		os.Exit(1)
 	}
 
@@ -172,10 +172,8 @@ func main() {
 
 	part2Guide, err := interpretGuide(input, Part2)
 
-	fmt.Println("%v", part2Guide)
-
 	if err != nil {
-		fmt.Errorf("failed to interpret guide for part 2: %v", err)
+		fmt.Fprintln(os.Stderr, "failed to interpret guide for part 2", err)
 		os.Exit(1)
 	}
 
