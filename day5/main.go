@@ -13,8 +13,8 @@ type Stack[T any] []T
 
 type Crate rune
 
-func (s *Stack[T]) Size() bool {
-	return len(*s) == 0
+func (s *Stack[T]) Size() int {
+	return len(*s)
 }
 
 func (s *Stack[T]) Push(val T) {
@@ -89,9 +89,9 @@ func readInput(r io.Reader) ([]Stack[Crate], []Move, error) {
 	// we built the state by pushing them on in the opposite order, we need to now reverse them
 	// (better this way to avoid lots of memory allocations)
 	for i, stack := range state {
-		newStack := make(Stack[Crate], 0, len(stack))
+		newStack := make(Stack[Crate], 0, stack.Size())
 
-		for j := len(stack) - 1; j >= 0; j-- {
+		for j := stack.Size() - 1; j >= 0; j-- {
 			newStack.Push(stack[j])
 		}
 
@@ -137,7 +137,7 @@ func cloneCrates(crates []Stack[Crate]) []Stack[Crate] {
 	out := make([]Stack[Crate], 0, len(crates))
 
 	for _, stack := range crates {
-		newStack := make(Stack[Crate], len(stack))
+		newStack := make(Stack[Crate], stack.Size())
 		copy(newStack, stack)
 		out = append(out, newStack)
 	}
