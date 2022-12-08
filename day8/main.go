@@ -41,17 +41,17 @@ func parseInput(r io.Reader) ([][]int, error) {
 }
 
 func setVisibility(trees [][]Tree, tallestTrees []*Tree, i int, j int, d Direction) error {
-    var staticVariable int
+	var staticVariable int
 
 	switch d {
 	case North:
-        staticVariable = j
+		staticVariable = j
 	case West:
-        staticVariable = i
+		staticVariable = i
 	case South:
-        staticVariable = j
+		staticVariable = j
 	case East:
-        staticVariable = i
+		staticVariable = i
 	default:
 		return fmt.Errorf("setting visibility from unknown direction %d", d)
 	}
@@ -59,12 +59,12 @@ func setVisibility(trees [][]Tree, tallestTrees []*Tree, i int, j int, d Directi
 	tree := &trees[i][j]
 
 	tallestTree := tallestTrees[staticVariable]
-    //fmt.Println("tree", tree, "tallest tree", tallestTree)
+	//fmt.Println("tree", tree, "tallest tree", tallestTree)
 	if tallestTree == nil || tree.height > tallestTree.height {
 		tree.visibleFrom[d] = struct{}{}
-        tallestTrees[staticVariable] = tree
+		tallestTrees[staticVariable] = tree
 	}
-    //fmt.Println(tallestTrees)
+	//fmt.Println(tallestTrees)
 	return nil
 }
 
@@ -91,7 +91,7 @@ func getVisibility(heights [][]int) ([][]Tree, error) {
 	// I'm sure you can deduplicate this a bit more, but seems fine by me for now
 
 	// north pass
-    northTallestTrees := make([]*Tree, gridWidth)
+	northTallestTrees := make([]*Tree, gridWidth)
 	for i := 0; i < gridHeight; i++ {
 		for j := 0; j < gridWidth; j++ {
 			setVisibility(trees, northTallestTrees, i, j, North)
@@ -99,7 +99,7 @@ func getVisibility(heights [][]int) ([][]Tree, error) {
 	}
 
 	// east pass
-    eastTallestTrees := make([]*Tree, gridHeight)
+	eastTallestTrees := make([]*Tree, gridHeight)
 	for j := gridWidth - 1; j >= 0; j-- {
 		for i := 0; i < gridHeight; i++ {
 			setVisibility(trees, eastTallestTrees, i, j, East)
@@ -107,7 +107,7 @@ func getVisibility(heights [][]int) ([][]Tree, error) {
 	}
 
 	// south pass
-    southTallestTrees := make([]*Tree, gridHeight)
+	southTallestTrees := make([]*Tree, gridHeight)
 	for i := gridHeight - 1; i >= 0; i-- {
 		for j := 0; j < gridWidth; j++ {
 			setVisibility(trees, southTallestTrees, i, j, South)
@@ -115,7 +115,7 @@ func getVisibility(heights [][]int) ([][]Tree, error) {
 	}
 
 	// west pass
-    westTallestTrees := make([]*Tree, gridHeight)
+	westTallestTrees := make([]*Tree, gridHeight)
 	for j := 0; j < gridWidth; j++ {
 		for i := 0; i < gridHeight; i++ {
 			setVisibility(trees, westTallestTrees, i, j, West)
