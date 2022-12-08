@@ -137,6 +137,57 @@ func part1(trees [][]Tree) int {
 	return total
 }
 
+func part2(trees [][]Tree) int {
+	bestScore := 0
+	gridHeight, gridWidth := len(trees), len(trees[0])
+
+	for i, row := range trees {
+		for j, tree := range row {
+			// ignore edges
+			if i == 0 || j == 0 || i == gridHeight-1 || j == gridWidth-1 {
+				continue
+			}
+
+			// do a pass in each direction
+			var north, east, south, west int
+			for north = 1; north < i; north++ {
+				northTree := trees[i-north][j]
+				if northTree.height >= tree.height {
+					break
+				}
+			}
+
+			for east = 1; east < gridWidth-j-1; east++ {
+				eastTree := trees[i][j+east]
+				if eastTree.height >= tree.height {
+					break
+				}
+			}
+
+			for south = 1; south < gridHeight-i-1; south++ {
+				southTree := trees[i+south][j]
+				if southTree.height >= tree.height {
+					break
+				}
+			}
+
+			for west = 1; west < j; west++ {
+				westTree := trees[i][j-west]
+				if westTree.height >= tree.height {
+					break
+				}
+			}
+
+			score := north * east * south * west
+			fmt.Println(tree, north, east, south, west)
+			if score > bestScore {
+				bestScore = score
+			}
+		}
+	}
+	return bestScore
+}
+
 func run() error {
 	grid, err := parseInput(os.Stdin)
 
@@ -157,6 +208,8 @@ func run() error {
 	}
 
 	fmt.Println("Part 1:", part1(trees))
+
+	fmt.Println("Part 2:", part2(trees))
 
 	return nil
 }
