@@ -216,7 +216,7 @@ func run() error {
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "failed to solve day 8: %v", err)
+		fmt.Fprintln(os.Stderr, "failed to solve day 8:", err)
 		os.Exit(1)
 	}
 }

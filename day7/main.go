@@ -87,7 +87,7 @@ func parseCd(parts []string, cwd **Directory, root *Directory) error {
 	dest, exists := (*cwd).directories[parts[2]]
 
 	if !exists {
-		return fmt.Errorf("attempted to descend to non-existent directory %s", dest)
+		return fmt.Errorf("attempted to descend to non-existent directory %v", dest)
 	}
 
 	(*cwd) = dest
@@ -100,7 +100,6 @@ func parseFilesystem(r io.Reader) (Directory, error) {
 	root := Directory{"/", []File{}, map[string]*Directory{}, nil}
 
 	var cwd *Directory
-	cwd = nil
 
 	validLine := scanner.Scan()
 	line := scanner.Text()

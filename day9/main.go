@@ -102,7 +102,7 @@ func getMove(line string) (*Instruction, error) {
 
 func simulate(moves []*Instruction, ropeLength int) (int, error) {
 	rope := make([]*Location, ropeLength)
-	for i, _ := range rope {
+	for i := range rope {
 		rope[i] = &Location{0, 0}
 	}
 
