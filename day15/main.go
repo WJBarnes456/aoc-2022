@@ -158,20 +158,22 @@ func part1(sbs []SensorBeacon) int {
 }
 
 func part2(sbs []SensorBeacon) int {
-NEXTY:
+	result := make(chan int)
 	for y := 0; y <= 4000000; y++ {
-		blocked := findBlocked(sbs, y)
-		for _, r := range blocked {
-			if r.start <= 0 && r.end >= 4000000 {
-				continue NEXTY
+		go func(lineY int) {
+			blocked := findBlocked(sbs, lineY)
+			for _, r := range blocked {
+				if r.start <= 0 && r.end >= 4000000 {
+					return
+				}
 			}
-		}
-		// this is where the beacon must be
-		x := blocked[0].end + 1
-		fmt.Println("Found on y=", y, ":", blocked)
-		return x*4000000 + y
+			// this is where the beacon must be
+			x := blocked[0].end + 1
+			fmt.Println("Found on y=", lineY, ":", blocked)
+			result <- 4000000*x + lineY
+		}(y)
 	}
-	return 0
+	return <-result
 }
 
 func run() error {
