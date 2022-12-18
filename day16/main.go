@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"container/heap"
 	"fmt"
 	"io"
 	"os"
@@ -20,6 +21,11 @@ type State struct {
 	occupiedValves string
 	openValves     string
 	timeRemaining  int
+}
+
+type Move struct {
+	position    string
+	openedValve *string
 }
 
 func max(a int, b int) int {
@@ -78,15 +84,14 @@ type Memo map[State]int
 
 func flattenValves(valves []string) string {
 	newValves := make([]string, len(valves))
-	for i, valve := range valves {
-		newValves[i] = valve
-	}
+	copy(newValves, valves)
+
 	sort.Strings(newValves)
 
 	return strings.Join(newValves, "")
 }
 
-func (_ *Memo) getState(occupiedValves []string, openValves map[string]*Valve, timeRemaining int) State {
+func (*Memo) getState(occupiedValves []string, openValves map[string]*Valve, timeRemaining int) State {
 	openValveSlice := make([]string, len(openValves))
 	for _, valve := range openValves {
 		openValveSlice = append(openValveSlice, valve.name)
@@ -101,7 +106,7 @@ func (_ *Memo) getState(occupiedValves []string, openValves map[string]*Valve, t
 
 func allValvesOpen(valves map[string]*Valve, openValves map[string]*Valve) bool {
 	for name, valve := range valves {
-		// ignore all valves with a flow rate less than 0
+		// ignore all valves with a flow rate less than or equal to 0
 		if valve.flowRate <= 0 {
 			continue
 		}
@@ -121,7 +126,49 @@ func totalScore(openValves map[string]*Valve) int {
 	return total
 }
 
-func (m *Memo) score(valves map[string]*Valve, occupiedValves []string, openValves map[string]*Valve, timeRemaining int) int {
+func addOpenValves(valves map[string]*Valve, openValves map[string]*Valve, valvesToOpen []*string) map[string]*Valve {
+	newOpenValves := make(map[string]*Valve, len(openValves)+len(valvesToOpen))
+	for name, valve := range openValves {
+		newOpenValves[name] = valve
+	}
+
+	for _, name := range valvesToOpen {
+		if name != nil {
+			newOpenValves[*name] = valves[*name]
+		}
+	}
+	return newOpenValves
+}
+
+// given a list of lists of moves for each agent
+// return a list of every combination of moves from each of those lists
+// e.g. [[A,B], [C,D]] -> [[A,C],[A,D],[B,C],[B,D]]
+func allMoveCombinations(allAgentMoves [][]Move) [][]Move {
+	// this is very naturally expressed in a functional style
+	// I'm sure this can be optimised
+	if len(allAgentMoves) == 1 {
+		out := make([][]Move, 0, len(allAgentMoves[0]))
+		for _, move := range allAgentMoves[0] {
+			out = append(out, []Move{move})
+		}
+		return out
+	}
+
+	combos := allMoveCombinations(allAgentMoves[1:])
+	theseMoves := allAgentMoves[0]
+	out := make([][]Move, 0, len(combos)*len(theseMoves))
+	for _, move := range theseMoves {
+		for _, combo := range combos {
+			newCombo := make([]Move, 0, len(combo)+1)
+			newCombo = append(newCombo, move)
+			newCombo = append(newCombo, combo...)
+			out = append(out, newCombo)
+		}
+	}
+	return out
+}
+
+func (m *Memo) score(valves map[string]*Valve, shortestPaths map[string]map[string][]string, occupiedValves []string, openValves map[string]*Valve, timeRemaining int) int {
 	state := m.getState(occupiedValves, openValves, timeRemaining)
 	value, alreadyCalculated := (*m)[state]
 	if alreadyCalculated {
@@ -132,28 +179,45 @@ func (m *Memo) score(valves map[string]*Valve, occupiedValves []string, openValv
 		return 0
 	}
 
+	roundScore := totalScore(openValves)
+
 	// once all valves are open, no further action is useful
 	if allValvesOpen(valves, openValves) {
-		return timeRemaining * totalScore(openValves)
+		value := timeRemaining * roundScore
+		(*m)[state] = value
+		return value
 	}
 
-	roundScore := totalScore(openValves)
+	allAgentMoves := [][]Move{}
+	for _, valveName := range occupiedValves {
+		valve := valves[valveName]
+		agentMoves := []Move{}
+		_, opened := openValves[valveName]
+		if valve.flowRate > 0 && !opened {
+			// NB: can't just use &valveName as that changes as the loop progresses
+			// no wonder I was ending up with non-sensical results in the multi-agent case!
+			agentMoves = append(agentMoves, Move{valveName, &valve.name})
+		}
+
+		for _, neighbour := range valve.neighbours {
+			// TODO only consider neighbours which are on the shortest path to a useful node
+			agentMoves = append(agentMoves, Move{neighbour.name, nil})
+		}
+		allAgentMoves = append(allAgentMoves, agentMoves)
+	}
 
 	bestScore := 0
 
-	currentValve := occupiedValves[0]
-	_, opened := openValves[currentValve]
-	if valves[currentValve].flowRate > 0 && !opened {
-		potentialOpenValves := make(map[string]*Valve, len(openValves)+1)
-		for name, valve := range openValves {
-			potentialOpenValves[name] = valve
+	combos := allMoveCombinations(allAgentMoves)
+	for _, moveCombo := range combos {
+		nextPositions := make([]string, len(moveCombo))
+		valvesToOpen := make([]*string, len(moveCombo))
+		for i, move := range moveCombo {
+			nextPositions[i] = move.position
+			valvesToOpen[i] = move.openedValve
 		}
-		potentialOpenValves[currentValve] = valves[currentValve]
-		bestScore = max(bestScore, m.score(valves, []string{currentValve}, potentialOpenValves, timeRemaining-1))
-	}
-
-	for _, neighbour := range valves[currentValve].neighbours {
-		bestScore = max(bestScore, m.score(valves, []string{neighbour.name}, openValves, timeRemaining-1))
+		newOpenValves := addOpenValves(valves, openValves, valvesToOpen)
+		bestScore = max(bestScore, m.score(valves, shortestPaths, nextPositions, newOpenValves, timeRemaining-1))
 	}
 
 	value = roundScore + bestScore
@@ -162,9 +226,56 @@ func (m *Memo) score(valves map[string]*Valve, occupiedValves []string, openValv
 	return value
 }
 
-func part1(valves map[string]*Valve) int {
+func part1(valves map[string]*Valve, shortestPaths map[string]map[string][]string) int {
 	memo := Memo(map[State]int{})
-	return memo.score(valves, []string{"AA"}, map[string]*Valve{}, 30)
+	score := memo.score(valves, shortestPaths, []string{"AA"}, map[string]*Valve{}, 30)
+	return score
+}
+
+func part2(valves map[string]*Valve, shortestPaths map[string]map[string][]string) int {
+	memo := Memo(map[State]int{})
+	return memo.score(valves, shortestPaths, []string{"AA", "AA"}, map[string]*Valve{}, 26)
+}
+
+func getShortestPaths(valves map[string]*Valve, targetValve *Valve) map[string][]string {
+	// just use dijkstra here
+	visited := map[*Valve]struct{}{}
+	shortestPaths := map[string][]string{}
+	pq := PriorityQueue{}
+	shortestPaths[targetValve.name] = []string{}
+	heap.Push(&pq, &Item{value: targetValve, priority: 0})
+	for len(pq) > 0 {
+		item := heap.Pop(&pq).(*Item)
+
+		valve := item.value
+		_, alreadyVisited := visited[valve]
+		if alreadyVisited {
+			continue
+		}
+
+		for _, neighbour := range valve.neighbours {
+			oldNeighbourPath, oldPathExists := shortestPaths[neighbour.name]
+			if !oldPathExists || len(shortestPaths[valve.name])+1 < len(oldNeighbourPath) {
+				shortestPaths[neighbour.name] = []string{valve.name}
+				shortestPaths[neighbour.name] = append(shortestPaths[neighbour.name], shortestPaths[valve.name]...)
+				heap.Push(&pq, &Item{value: neighbour, priority: len(shortestPaths[neighbour.name])})
+			}
+		}
+		visited[valve] = struct{}{}
+	}
+	return shortestPaths
+}
+
+func getAllShortestPaths(valves map[string]*Valve) map[string]map[string][]string {
+	// we're only interested in shortest paths to valves with non-zero start points
+	shortestPaths := map[string]map[string][]string{}
+	for _, targetValve := range valves {
+		if targetValve.flowRate <= 0 {
+			continue
+		}
+		shortestPaths[targetValve.name] = getShortestPaths(valves, targetValve)
+	}
+	return shortestPaths
 }
 
 func run() error {
@@ -184,7 +295,11 @@ func run() error {
 		fmt.Println(valve)
 	}
 
-	fmt.Println("Part 1:", part1(valves))
+	shortestPaths := getAllShortestPaths(valves)
+
+	fmt.Println("Part 1:", part1(valves, shortestPaths))
+
+	fmt.Println("Part 2:", part2(valves, shortestPaths))
 
 	return nil
 }
