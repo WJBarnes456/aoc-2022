@@ -181,13 +181,6 @@ func (m *Memo) score(valves map[string]*Valve, shortestPaths map[string]map[stri
 
 	roundScore := totalScore(openValves)
 
-	// once all valves are open, no further action is useful
-	if allValvesOpen(valves, openValves) {
-		value := timeRemaining * roundScore
-		(*m)[state] = value
-		return value
-	}
-
 	allAgentMoves := [][]Move{}
 	for _, valveName := range occupiedValves {
 		valve := valves[valveName]
@@ -199,14 +192,31 @@ func (m *Memo) score(valves map[string]*Valve, shortestPaths map[string]map[stri
 			agentMoves = append(agentMoves, Move{valveName, &valve.name})
 		}
 
-		for _, neighbour := range valve.neighbours {
-			// TODO only consider neighbours which are on the shortest path to a useful node
-			agentMoves = append(agentMoves, Move{neighbour.name, nil})
+		addedNeighbours := map[string]struct{}{}
+		for dest, paths := range shortestPaths {
+			// don't consider reopening already-opened valves
+			if _, opened := openValves[dest]; opened {
+				continue
+			}
+
+			// don't consider opening valves you can't reach in time
+			thisPath := paths[valve.name]
+			if len(thisPath) == 0 || len(thisPath)+1 > timeRemaining {
+				continue
+			}
+
+			// consider steps which bring you towards unopened valves
+			next := thisPath[0]
+			if _, added := addedNeighbours[next]; added {
+				continue
+			}
+			agentMoves = append(agentMoves, Move{next, nil})
+			addedNeighbours[next] = struct{}{}
 		}
 		allAgentMoves = append(allAgentMoves, agentMoves)
 	}
 
-	bestScore := 0
+	bestScore := timeRemaining * roundScore
 
 	combos := allMoveCombinations(allAgentMoves)
 	for _, moveCombo := range combos {
@@ -217,10 +227,10 @@ func (m *Memo) score(valves map[string]*Valve, shortestPaths map[string]map[stri
 			valvesToOpen[i] = move.openedValve
 		}
 		newOpenValves := addOpenValves(valves, openValves, valvesToOpen)
-		bestScore = max(bestScore, m.score(valves, shortestPaths, nextPositions, newOpenValves, timeRemaining-1))
+		bestScore = max(bestScore, m.score(valves, shortestPaths, nextPositions, newOpenValves, timeRemaining-1)+roundScore)
 	}
 
-	value = roundScore + bestScore
+	value = bestScore
 	(*m)[state] = value
 
 	return value
@@ -243,7 +253,7 @@ func getShortestPaths(valves map[string]*Valve, targetValve *Valve) map[string][
 	shortestPaths := map[string][]string{}
 	pq := PriorityQueue{}
 	shortestPaths[targetValve.name] = []string{}
-	heap.Push(&pq, &Item{value: targetValve, priority: 0})
+	heap.Push(&pq, &Item{value: targetValve, distance: 0})
 	for len(pq) > 0 {
 		item := heap.Pop(&pq).(*Item)
 
@@ -255,10 +265,10 @@ func getShortestPaths(valves map[string]*Valve, targetValve *Valve) map[string][
 
 		for _, neighbour := range valve.neighbours {
 			oldNeighbourPath, oldPathExists := shortestPaths[neighbour.name]
-			if !oldPathExists || len(shortestPaths[valve.name])+1 < len(oldNeighbourPath) {
+			if !oldPathExists || len(shortestPaths[neighbour.name])+1 < len(oldNeighbourPath) {
 				shortestPaths[neighbour.name] = []string{valve.name}
 				shortestPaths[neighbour.name] = append(shortestPaths[neighbour.name], shortestPaths[valve.name]...)
-				heap.Push(&pq, &Item{value: neighbour, priority: len(shortestPaths[neighbour.name])})
+				heap.Push(&pq, &Item{value: neighbour, distance: len(shortestPaths[neighbour.name])})
 			}
 		}
 		visited[valve] = struct{}{}
