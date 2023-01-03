@@ -144,9 +144,9 @@ func (m *Memo) maxGeodes(s State, bestSoFar *int) int {
 	}
 
 	// if there's no way to exceed the best we've seen so far, no need to continue
-	// best case scenario, we build another geode bot every turn, so result is timeRemaining + timeRemaining-1 + ... + 1
-	// i.e. t(t+1)/2
-	if score+(s.timeRemaining*(s.timeRemaining+1))/2 < *bestSoFar {
+	// best case scenario, we build another geode bot every turn, so result is timeRemaining -1 + timeRemaining-2 + ... + 1
+	// i.e. t(t-1)/2
+	if score+(s.timeRemaining*(s.timeRemaining-1))/2 < *bestSoFar {
 		return score
 	}
 
