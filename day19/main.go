@@ -245,10 +245,7 @@ func part1_worker(blueprints <-chan *Blueprint, scores chan<- int) {
 
 func part1(blueprints []*Blueprint) int {
 	scores := make(chan int, len(blueprints))
-	defer close(scores)
-
 	jobs := make(chan *Blueprint, len(blueprints))
-	defer close(jobs)
 
 	for i := 0; i < 8; i++ {
 		go part1_worker(jobs, scores)
@@ -258,10 +255,13 @@ func part1(blueprints []*Blueprint) int {
 		jobs <- blueprint
 	}
 
+	close(jobs)
+
 	sum := 0
 	for range blueprints {
 		sum += <-scores
 	}
+	close(scores)
 
 	return sum
 }
